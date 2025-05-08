@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - DATABASE_URL=mysql://root:password@db:3306/free_manga_db
+    depends_on:
+      - db
+    restart: always
+
+  db:
+    image: mysql:8.0
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=free_manga_db
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+
+  scraper:
+    build: .
+    command: python manage.py runscript scraper
+    volumes:
+      - .:/code
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  mysql_data:
