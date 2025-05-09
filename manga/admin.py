@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Manga, Category, EbookStore, ScrapingHistory, ScrapedManga
+from .models import Manga, Category, EbookStore, ScrapingHistory, ScrapedManga, EbookStoreCategoryUrl
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -46,3 +46,11 @@ class ScrapedMangaAdmin(admin.ModelAdmin):
         return obj.scraping_history.scraping_date
     get_scraping_date.short_description = 'スクレイピング日'
     get_scraping_date.admin_order_field = 'scraping_history__scraping_date'
+
+
+@admin.register(EbookStoreCategoryUrl)
+class EbookStoreCategoryUrlAdmin(admin.ModelAdmin):
+    list_display = ('store', 'category', 'url', 'created_at', 'updated_at')
+    list_filter = ('store', 'category')
+    search_fields = ('store__name', 'category__name', 'url')
+    readonly_fields = ('created_at', 'updated_at')
