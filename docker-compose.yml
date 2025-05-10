@@ -29,7 +29,7 @@ services:
 
   scraper:
     build: .
-    command: python manage.py runscript scraper
+    command: tail -f /dev/null
     volumes:
       - .:/code
     environment:
