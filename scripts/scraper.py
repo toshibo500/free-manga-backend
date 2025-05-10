@@ -5,10 +5,11 @@ Django extensionsのrunscriptコマンドで実行する
 """
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from django.db import transaction
-from manga.models import Category, EbookStore
+from manga.models import Category, EbookStore, ScrapingHistory
 from scripts.scrapers.registry import ScraperRegistry
+from scripts.utils import get_or_create_manga
 
 # ロギングの設定
 logging.basicConfig(
@@ -39,11 +40,29 @@ def run():
             try:
                 logger.info(f"電子書籍ストア '{store.name}' (ID: {store.id}) のスクレイピングを開始します")
                 
+                # スクレイピング履歴（同じ日付・ストアがあれば再利用、なければ作成）
+                today = date.today()
+                scraping_history, _ = ScrapingHistory.objects.get_or_create(
+                    store=store,
+                    scraping_date=today,
+                    defaults={
+                        'started_at': datetime.now(),
+                        'is_success': False
+                    }
+                )
+                
                 # スクレイパーインスタンスを取得
                 try:
                     scraper = ScraperRegistry.get_scraper(store.id)
+                    
+                    # スクレイピング履歴をインスタンスにセット
+                    setattr(scraper, 'scraping_history', scraping_history)
+                    
                     # スクレイピングを実行
                     success = scraper.run()
+                    scraping_history.is_success = bool(success)
+                    scraping_history.finished_at = datetime.now()
+                    scraping_history.save()
                     
                     if success:
                         logger.info(f"電子書籍ストア '{store.name}' のスクレイピングが成功しました")

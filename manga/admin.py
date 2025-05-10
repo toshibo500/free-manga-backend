@@ -9,10 +9,14 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Manga)
 class MangaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'author', 'category', 'free_chapters', 'free_books', 'rating')
-    list_filter = ('category', 'rating')
+    list_display = ('id', 'title', 'author', 'get_categories', 'free_chapters', 'free_books', 'rating')
+    list_filter = ('categories', 'rating')
     search_fields = ('title', 'author', 'description')
     readonly_fields = ('created_at', 'updated_at')
+
+    def get_categories(self, obj):
+        return ", ".join([c.name for c in obj.categories.all()])
+    get_categories.short_description = 'カテゴリ'
 
 
 @admin.register(EbookStore)
@@ -32,10 +36,22 @@ class ScrapingHistoryAdmin(admin.ModelAdmin):
 
 @admin.register(ScrapedManga)
 class ScrapedMangaAdmin(admin.ModelAdmin):
-    list_display = ('title', 'author', 'category', 'rank', 'free_chapters', 'free_books', 'get_store', 'get_scraping_date')
-    list_filter = ('category', 'scraping_history__store', 'scraping_history__scraping_date')
-    search_fields = ('title', 'author')
+    list_display = ('get_title', 'get_author', 'get_categories', 'rank', 'free_chapters', 'free_books', 'get_store', 'get_scraping_date')
+    list_filter = ('manga__categories', 'scraping_history__store', 'scraping_history__scraping_date')
+    search_fields = ('manga__title', 'manga__author')
     readonly_fields = ('created_at',)
+    
+    def get_title(self, obj):
+        return obj.manga.title
+    get_title.short_description = 'タイトル'
+    
+    def get_author(self, obj):
+        return obj.manga.author
+    get_author.short_description = '著者'
+    
+    def get_categories(self, obj):
+        return ", ".join([c.name for c in obj.manga.categories.all()])
+    get_categories.short_description = 'カテゴリ'
     
     def get_store(self, obj):
         return obj.scraping_history.store.name

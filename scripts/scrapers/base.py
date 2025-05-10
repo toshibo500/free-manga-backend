@@ -39,27 +39,20 @@ class BaseStoreScraper(ABC):
         """
         スクレイピングを実行します
         """
-        # スクレイピング履歴を作成
-        self.history = self._create_history()
-        
+        # 既にscraping_history属性がセットされていればそれを使う
+        if hasattr(self, 'scraping_history') and self.scraping_history:
+            self.history = self.scraping_history
+        else:
+            self.history = self._create_history()
         try:
             # スクレイピングを実行
             logger.info(f"{self.store.name} のスクレイピングを開始します")
-            
-            # コンテンツをスクレイピング
             manga_data_list = self._scrape()
-            
-            # データを保存
             self._save_data(manga_data_list)
-            
-            # 履歴を更新して成功を記録
             self._update_history_success()
-            
             logger.info(f"{self.store.name} のスクレイピングが正常に完了しました")
             return True
-        
         except Exception as e:
-            # エラーを記録して失敗を記録
             error_message = f"スクレイピング中にエラーが発生しました: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_message)
             self._update_history_failure(error_message)
@@ -94,34 +87,24 @@ class BaseStoreScraper(ABC):
             manga_data_list (list): マンガデータのリスト
         """
         created_count = 0
-        
         for i, manga_data in enumerate(manga_data_list):
             try:
-                # 各データの保存を個別のトランザクションで実行
                 with transaction.atomic():
-                    # カテゴリを取得 (ない場合はデフォルトで 'all' を使用)
                     category_id = manga_data.get('category_id', 'all')
                     category = Category.objects.get(id=category_id)
-                    
-                    # 著者名が長すぎる場合は切り詰める
-                    author = manga_data['author']
-                    if len(author) > 250:  # 安全のため少し余裕を持たせる
-                        author = author[:250] + '...'
-                    
-                    # データを保存
-                    ScrapedManga.objects.create(
+                    manga = manga_data['manga']
+                    ScrapedManga.objects.update_or_create(
                         scraping_history=self.history,
-                        title=manga_data['title'],
-                        author=author,
-                        free_chapters=manga_data['free_chapters'],
-                        free_books=manga_data['free_books'],
-                        category=category,
-                        rank=manga_data['rank']
+                        manga=manga,
+                        defaults={
+                            'free_chapters': manga_data['free_chapters'],
+                            'free_books': manga_data['free_books'],
+                            'rank': manga_data['rank']
+                        }
                     )
                     created_count += 1
             except Exception as e:
                 logger.warning(f"マンガデータの保存中にエラーが発生しました (rank: {i+1}): {str(e)}")
-        
         logger.info(f"{created_count}件のマンガデータを保存しました")
     
     @abstractmethod

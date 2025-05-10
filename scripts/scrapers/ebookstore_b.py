@@ -18,33 +18,9 @@ class EbookStoreBScraper(BaseStoreScraper):
     """
     
     def _scrape(self):
-        """
-        電子書籍ストアBからデータをスクレイピングします
-        
-        Returns:
-            list: マンガデータのリスト
-        """
-        logger.info(f"{self.store.name}からデータのスクレイピングを開始します...")
-        
-        # 実際には以下のURLにリクエストを送信してデータを取得します
-        url = self.store.url
-        
-        try:
-            # ここに実際のスクレイピングコードを実装
-            # 現時点ではサンプルデータを返します
-            
-            # 待機してウェブサーバーに負荷をかけないようにする
-            time.sleep(1)
-            
-            # サンプルデータを生成
-            manga_list = self._generate_sample_data()
-            
-            return manga_list
-            
-        except Exception as e:
-            logger.error(f"スクレイピング中にエラーが発生しました: {str(e)}")
-            raise
-    
+        # 一時的に何もせず空リストを返すことで実行されないようにする
+        return []
+
     def _generate_sample_data(self):
         """サンプルデータを生成（実際のスクレイピングの代わり）"""
         logger.info("サンプルデータを生成しています...")

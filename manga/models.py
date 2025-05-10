@@ -23,16 +23,16 @@ class Category(models.Model):
 
 class Manga(models.Model):
     """マンガモデル"""
-    id = models.CharField(max_length=50, primary_key=True)
+    id = models.BigAutoField(primary_key=True)
     title = models.CharField(max_length=255)
     author = models.CharField(max_length=100)
     cover_image = models.URLField()
     free_chapters = models.IntegerField()
     free_books = models.IntegerField()
-    category = models.ForeignKey(
+    categories = models.ManyToManyField(
         Category,
-        on_delete=models.CASCADE,
-        related_name='mangas'
+        related_name='mangas',
+        verbose_name='カテゴリ'
     )
     description = models.TextField(blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
@@ -106,19 +106,17 @@ class ScrapingHistory(models.Model):
 class ScrapedManga(models.Model):
     """スクレイピングしたマンガデータモデル"""
     scraping_history = models.ForeignKey('ScrapingHistory', on_delete=models.CASCADE, related_name='scraped_mangas', verbose_name='スクレイピング履歴')
-    title = models.CharField(max_length=255, verbose_name='タイトル')
-    author = models.CharField(max_length=255, verbose_name='著者')  # 最大長を100から255に変更
+    manga = models.ForeignKey('Manga', on_delete=models.PROTECT, related_name='scraped_mangas', verbose_name='マンガ')
     free_chapters = models.IntegerField(verbose_name='無料話数')
     free_books = models.IntegerField(verbose_name='無料冊数')
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='scraped_mangas', verbose_name='カテゴリ')
     rank = models.PositiveIntegerField(verbose_name='ランキング順位')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
     
     def __str__(self):
-        return f"{self.title} (Rank: {self.rank})"
+        return f"{self.manga.title} (Rank: {self.rank})"
     
     class Meta:
         verbose_name = 'スクレイピングマンガデータ'
         verbose_name_plural = 'スクレイピングマンガデータ'
         ordering = ['scraping_history', 'rank']
-        unique_together = ['scraping_history', 'title', 'author']
+        unique_together = ['scraping_history', 'manga']
