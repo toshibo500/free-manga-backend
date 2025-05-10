@@ -27,8 +27,6 @@ class Manga(models.Model):
     title = models.CharField(max_length=255)
     author = models.CharField(max_length=100)
     cover_image = models.URLField()
-    free_chapters = models.IntegerField()
-    free_books = models.IntegerField()
     categories = models.ManyToManyField(
         Category,
         related_name='mangas',

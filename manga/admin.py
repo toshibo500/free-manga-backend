@@ -9,7 +9,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Manga)
 class MangaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'author', 'get_categories', 'free_chapters', 'free_books', 'rating')
+    list_display = ('id', 'title', 'author', 'get_categories', 'rating')
     list_filter = ('categories', 'rating')
     search_fields = ('title', 'author', 'description')
     readonly_fields = ('created_at', 'updated_at')

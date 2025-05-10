@@ -24,8 +24,6 @@ def get_or_create_manga(title, author, categories, cover_image=None, description
             'cover_image': cover_image or '',
             'description': description or '',
             'rating': rating,
-            'free_chapters': 0,
-            'free_books': 0,
         }
     )
     if created and categories:
