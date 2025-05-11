@@ -28,4 +28,4 @@ class PopularMangaListView(generics.ListAPIView):
             return Manga.objects.all().order_by('-rating')[:10]
         
         # 特定のカテゴリのマンガを返す
-        return Manga.objects.filter(category=category).order_by('-rating')[:10]
+        return Manga.objects.filter(categories__id=category).order_by('-rating')[:10]

@@ -33,7 +33,7 @@ class Manga(models.Model):
         verbose_name='カテゴリ'
     )
     description = models.TextField(blank=True, null=True)
-    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
+    rating = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -12,13 +12,12 @@ class CategorySerializer(serializers.ModelSerializer):
 class MangaSerializer(serializers.ModelSerializer):
     """マンガのシリアライザ"""
     # カテゴリーをIDのみで表示するため、StringRelatedFieldを使用
-    category = serializers.StringRelatedField()
+    categories = serializers.StringRelatedField(many=True)
     
     class Meta:
         model = Manga
         fields = [
             'id', 'title', 'author', 'cover_image', 
-            'free_chapters', 'free_books', 'category', 
-            'description', 'rating'
+            'categories', 'description', 'rating'
         ]
         read_only_fields = ['id']

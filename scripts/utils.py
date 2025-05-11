@@ -1,8 +1,10 @@
 from manga.models import Manga
+import unicodedata
 
-def get_or_create_manga(title, author, categories, cover_image=None, description=None, rating=0.0):
+def get_or_create_manga(title, author, categories, cover_image=None, description=None, rating=0):
     """
     タイトルでマンガを検索し、なければ新規作成する共通関数
+    タイトルは全て全角に変換して検索・登録します
     :param title: str
     :param author: str
     :param categories: list of Categoryインスタンス
@@ -12,22 +14,35 @@ def get_or_create_manga(title, author, categories, cover_image=None, description
     :return: Mangaインスタンス, created(bool)
     """
     # 追加バリデーション: 空やNone、空白のみ、または'不明'は作成しない
-    if not title or not author or title == "不明" or author == "不明":
+    if not title or title == "不明":
         return None, False
-    if not isinstance(title, str) or not isinstance(author, str) or not title.strip() or not author.strip():
+    if not isinstance(title, str) or not title.strip():
         return None, False
-
-    manga, created = Manga.objects.get_or_create(
-        title=title,
+    
+    # タイトルを全角に変換
+    normalized_title = unicodedata.normalize('NFKC', title)
+    
+    # タイトルで検索
+    existing_manga = Manga.objects.filter(title=normalized_title).first()
+    
+    if existing_manga:
+        # 既存のマンガが見つかった場合は、それを返す
+        if categories:
+            existing_manga.categories.add(*categories)
+        return existing_manga, False
+    
+    # 既存のマンガがない場合のみ新規作成
+    # author のバリデーション
+    if not author or author == "不明" or not isinstance(author, str) or not author.strip():
+        return None, False
+        
+    manga = Manga.objects.create(
+        title=normalized_title,
         author=author,
-        defaults={
-            'cover_image': cover_image or '',
-            'description': description or '',
-            'rating': rating,
-        }
+        cover_image=cover_image or '',
+        description=description or '',
+        rating=rating
     )
-    if created and categories:
+    if categories:
         manga.categories.set(categories)
-    elif not created and categories:
-        manga.categories.add(*categories)
-    return manga, created
+    return manga, True
