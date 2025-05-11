@@ -167,7 +167,7 @@ class EbookStoreBScraper(BaseStoreScraper):
                             logger.info(f"処理進捗: {i + 1}/{min(len(ranking_items), 100)} アイテム完了")
                         
                         # 次のリクエスト前に短い待機時間を入れる（サーバー負荷軽減）
-                        time.sleep(random.uniform(0.1, 0.3))
+                        time.sleep(random.uniform(0.5, 3.0))
                         
                     except Exception as e:
                         logger.warning(f"マンガアイテムの解析中にエラーが発生しました (rank: {i+1}): {e}")
