@@ -33,12 +33,14 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',
     'django_extensions',
+    'corsheaders',  # CORS対応のためのアプリケーション
     'manga',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # CORSミドルウェア（必ずCommonMiddlewareより前に配置）
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -142,3 +144,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
+
+# CORS設定
+CORS_ALLOW_ALL_ORIGINS = True  # 開発中は全オリジンからのアクセスを許可（本番環境では特定のオリジンのみ許可するべき）
+# または特定のオリジンのみ許可する場合:
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",  # Next.jsのデフォルトポート
+#     "http://127.0.0.1:3000",
+#     "http://your-production-domain.com",
+# ]
+
+# プリフライトリクエストのキャッシュ時間（秒）
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24時間
+
+# クッキーを含むクロスオリジンリクエストを許可
+CORS_ALLOW_CREDENTIALS = True
