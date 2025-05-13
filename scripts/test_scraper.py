@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 SCRAPER_STORE_MAPPINGS = {
     "ebookstore_a": "まんが王国",  # ID: 1
     "ebookstore_b": "スキマ",      # ID: 2
-    "ebookstore_c": "ebook japan"  # ID: 3
+    "ebookstore_c": "ebook japan", # ID: 3
+    "ebookstore_d": "シーモア"     # ID: 4
 }
 
 def run(*args):

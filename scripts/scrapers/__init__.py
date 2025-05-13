@@ -7,6 +7,7 @@ from scripts.scrapers.registry import ScraperRegistry
 from scripts.scrapers.ebookstore_a import MangaOukokuScraper
 from scripts.scrapers.ebookstore_b import EbookStoreBScraper
 from scripts.scrapers.ebookstore_c import EbookStoreCScraper
+from scripts.scrapers.ebookstore_d import EbookStoreDScraper
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ def register_scrapers():
     scrapers = {
         1: MangaOukokuScraper,  # ストアID 1 = まんが王国
         2: EbookStoreBScraper,  # ストアID 2 = スキマ
-        3: EbookStoreCScraper    # ストアID 3 = ebook japan
+        3: EbookStoreCScraper,   # ストアID 3 = ebook japan
+        4: EbookStoreDScraper    # ストアID 4 = シーモア
     }
     
     # スクレイパーをレジストリに登録
