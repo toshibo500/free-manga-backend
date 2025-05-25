@@ -17,7 +17,7 @@ import logging
 from datetime import datetime, date
 import sys
 from django.db import transaction
-from django.db.models import Avg, Min, Case, When, F, Value, IntegerField
+from django.db.models import Avg, Min, Max, Case, When, F, Value, IntegerField
 from manga.models import Manga, ScrapedManga, ScrapingHistory, EbookStore
 
 logger = logging.getLogger(__name__)
@@ -112,15 +112,34 @@ def update_ratings(target_date=None):
             
             print(f"  計算されたRating: {new_rating}, 現在のRating: {manga.rating}, 型: {type(manga.rating)}")
             
-            # 現在のRatingと比較して、変更がある場合のみ更新
-            if manga.rating != new_rating:
-                # Ratingを更新
+            # 無料話数と無料巻数の計算（最大値を使用）
+            free_chapters = scraped_data.aggregate(max_chapters=Max('free_chapters'))['max_chapters'] or 0
+            free_books = scraped_data.aggregate(max_books=Max('free_books'))['max_books'] or 0
+            
+            # Ratingまたは無料話数/無料巻数の更新が必要かチェック
+            needs_update = (manga.rating != new_rating or 
+                           manga.free_chapters != free_chapters or 
+                           manga.free_books != free_books)
+                           
+            if needs_update:
+                # 値を更新
                 old_rating = manga.rating
+                old_free_chapters = manga.free_chapters
+                old_free_books = manga.free_books
+                
                 manga.rating = new_rating
-                manga.save(update_fields=['rating'])
+                manga.free_chapters = free_chapters
+                manga.free_books = free_books
+                
+                # 更新するフィールドを指定
+                manga.save(update_fields=['rating', 'free_chapters', 'free_books'])
                 updated_count += 1
+                
                 ranks_detail = ", ".join(ranks_info)
-                logger.info(f"マンガ「{manga.title}」のRating更新: {old_rating} -> {new_rating} (順位詳細: {ranks_detail})")
+                logger.info(f"マンガ「{manga.title}」の更新: Rating: {old_rating} -> {new_rating}, "
+                           f"無料話数: {old_free_chapters} -> {free_chapters}, "
+                           f"無料巻数: {old_free_books} -> {free_books} "
+                           f"(順位詳細: {ranks_detail})")
         
         logger.info(f"更新されたマンガ: {updated_count}/{manga_count}件")
         return updated_count

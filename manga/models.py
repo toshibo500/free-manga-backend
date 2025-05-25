@@ -33,6 +33,8 @@ class Manga(models.Model):
         verbose_name='カテゴリ'
     )
     description = models.TextField(blank=True, null=True)
+    free_chapters = models.PositiveIntegerField(default=0, help_text='無料で読める話数')
+    free_books = models.PositiveIntegerField(default=0, help_text='無料で読める冊数')
     rating = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
