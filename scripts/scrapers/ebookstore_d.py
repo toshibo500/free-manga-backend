@@ -94,7 +94,7 @@ class EbookStoreDScraper(BaseStoreScraper):
                         rank = int(rank_match.group(1))
                         
                         # タイトルの取得
-                        title_elem = item.select_one('a.title')
+                        title_elem = item.select_one('div.search_result_box_right a.title')
                         if not title_elem:
                             logger.warning(f"タイトルが見つかりません (rank: {rank})")
                             continue
@@ -112,12 +112,13 @@ class EbookStoreDScraper(BaseStoreScraper):
                             continue
                             
                         detail_url = urljoin('https://www.cmoa.jp', detail_link)
+
+                        # 表示モードのパラメータをつける　?disp_mode=easy
+                        if not detail_url.endswith('disp_mode=easy'):
+                            detail_url += '?disp_mode=easy'
                         
-                        # 著者の取得 (詳細ページから)
-                        author = self._fetch_author_from_detail_page(detail_url)
-                        
-                        # 無料冊数を取得
-                        free_books = self._fetch_free_books_from_detail_page(detail_url)
+                        # 詳細ページから著者情報と無料冊数を一度に取得
+                        author, free_books = self._fetch_details_from_page(detail_url)
                         
                         # 無料話数は常に0
                         free_chapters = 0
@@ -250,9 +251,50 @@ class EbookStoreDScraper(BaseStoreScraper):
                 
             return None
             
+    def _fetch_details_from_page(self, detail_url):
+        """
+        マンガ詳細ページから著者情報と無料冊数を一度に取得
+        
+        Args:
+            detail_url (str): 詳細ページのURL
+            
+        Returns:
+            tuple: (著者名, 無料冊数)
+        """
+        try:
+            # 詳細ページを取得（1回のみ）
+            logger.info(f"詳細ページからマンガ情報を取得: {detail_url}")
+            response = self._fetch_page(detail_url)
+            if not response:
+                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
+                return "不明", 0
+                
+            soup = BeautifulSoup(response, 'html.parser')
+            
+            # 著者情報を取得
+            author = "不明"
+            author_elem = soup.select_one('div.title_details_author_name')
+            if author_elem:
+                author = author_elem.text.strip()
+                logger.info(f"詳細ページから著者情報を取得: {author}")
+                author = self._clean_author_name(author)
+            else:
+                logger.warning(f"詳細ページから著者情報を取得できませんでした: {detail_url}")
+            
+            # 無料冊数を取得
+            free_items = soup.select('ul.title_vol_easy_box li div.free_easy_m')
+            free_books = len(free_items)
+            logger.info(f"詳細ページから無料冊数を取得: {free_books}冊")
+            
+            return author, free_books
+            
+        except Exception as e:
+            logger.error(f"詳細ページからの情報取得中にエラーが発生: {e}")
+            return "不明", 0
+            
     def _fetch_author_from_detail_page(self, detail_url):
         """
-        マンガ詳細ページから著者情報を取得
+        マンガ詳細ページから著者情報を取得（後方互換性維持用）
         
         Args:
             detail_url (str): 詳細ページのURL
@@ -260,34 +302,12 @@ class EbookStoreDScraper(BaseStoreScraper):
         Returns:
             str: 著者名（取得できない場合は"不明"）
         """
-        try:
-            # 詳細ページを取得
-            logger.info(f"詳細ページから著者情報を取得: {detail_url}")
-            response = self._fetch_page(detail_url)
-            if not response:
-                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return "不明"
-                
-            soup = BeautifulSoup(response, 'html.parser')
-            
-            # 著者情報を取得
-            author_elem = soup.select_one('div.title_details_author_name')
-            if author_elem:
-                author = author_elem.text.strip()
-                logger.info(f"詳細ページから著者情報を取得: {author}")
-                return self._clean_author_name(author)
-            
-            # 著者情報が見つからない場合
-            logger.warning(f"詳細ページから著者情報を取得できませんでした: {detail_url}")
-            return "不明"
-            
-        except Exception as e:
-            logger.error(f"詳細ページからの著者情報取得中にエラーが発生: {e}")
-            return "不明"
+        author, _ = self._fetch_details_from_page(detail_url)
+        return author
             
     def _fetch_free_books_from_detail_page(self, detail_url):
         """
-        マンガ詳細ページから無料冊数を取得
+        マンガ詳細ページから無料冊数を取得（後方互換性維持用）
         
         Args:
             detail_url (str): 詳細ページのURL
@@ -295,26 +315,8 @@ class EbookStoreDScraper(BaseStoreScraper):
         Returns:
             int: 無料冊数
         """
-        try:
-            # 詳細ページを取得
-            logger.info(f"詳細ページから無料冊数を取得: {detail_url}")
-            response = self._fetch_page(detail_url)
-            if not response:
-                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return 0
-                
-            soup = BeautifulSoup(response, 'html.parser')
-            
-            # 無料冊数を取得
-            free_items = soup.select('ul.title_vol_easy_box li div.free_easy_m')
-            free_books = len(free_items)
-            
-            logger.info(f"詳細ページから無料冊数を取得: {free_books}冊")
-            return free_books
-            
-        except Exception as e:
-            logger.error(f"詳細ページからの無料冊数取得中にエラーが発生: {e}")
-            return 0
+        _, free_books = self._fetch_details_from_page(detail_url)
+        return free_books
 
     def _clean_author_name(self, author):
         """
