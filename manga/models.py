@@ -25,6 +25,7 @@ class Manga(models.Model):
     """マンガモデル"""
     id = models.BigAutoField(primary_key=True)
     title = models.CharField(max_length=255)
+    isbn = models.CharField(max_length=50, blank=True, null=True, verbose_name='ISBN')
     author = models.CharField(max_length=100)
     cover_image = models.URLField()
     categories = models.ManyToManyField(
