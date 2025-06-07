@@ -18,7 +18,7 @@ class MangaSerializer(serializers.ModelSerializer):
         model = Manga
         fields = [
             'id', 'title', 'isbn', 'author', 'cover_image', 
-            'categories', 'description', 'rating',
+            'categories', 'description', 'first_book_title', 'rating',
             'free_chapters', 'free_books'
         ]
         read_only_fields = ['id']

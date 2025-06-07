@@ -9,9 +9,9 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Manga)
 class MangaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'author', 'get_categories', 'rating')
+    list_display = ('id', 'title', 'author', 'first_book_title', 'get_categories', 'rating')
     list_filter = ('categories', 'rating')
-    search_fields = ('title', 'author', 'description')
+    search_fields = ('title', 'author', 'first_book_title', 'description')
     readonly_fields = ('created_at', 'updated_at')
 
     def get_categories(self, obj):

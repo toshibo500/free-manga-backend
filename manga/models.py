@@ -34,6 +34,7 @@ class Manga(models.Model):
         verbose_name='カテゴリ'
     )
     description = models.TextField(blank=True, null=True)
+    first_book_title = models.CharField(max_length=255, blank=True, null=True, verbose_name='1巻タイトル')
     free_chapters = models.PositiveIntegerField(default=0, help_text='無料で読める話数')
     free_books = models.PositiveIntegerField(default=0, help_text='無料で読める冊数')
     rating = models.PositiveIntegerField(default=0)
