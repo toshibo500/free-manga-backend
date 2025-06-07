@@ -6,6 +6,7 @@ import logging
 import time
 import re
 import requests
+import random
 from bs4 import BeautifulSoup
 from scripts.scrapers.base import BaseStoreScraper
 from scripts.utils import get_or_create_manga
@@ -99,10 +100,13 @@ class MangaOukokuScraper(BaseStoreScraper):
                                 if not isinstance(title, str) or not isinstance(author, str) or not title.strip() or not author.strip():
                                     logger.warning(f"空または無効なタイトル/著者をスキップ: title='{title}', author='{author}' (rank: {i+1})")
                                     continue
+                                
+                                # Update the database with the extracted first_book_title
                                 manga, _ = get_or_create_manga(
                                     title=title.strip(),
                                     author=author.strip(),
-                                    categories=category_objs
+                                    categories=category_objs,
+                                    first_book_title=first_book_title  # New field added
                                 )
                                 if scraping_history is not None:
                                     try:
@@ -176,6 +180,22 @@ class MangaOukokuScraper(BaseStoreScraper):
                             if not isinstance(title, str) or not isinstance(author, str) or not title.strip() or not author.strip():
                                 logger.warning(f"空または無効なタイトル/著者をスキップ: title='{title}', author='{author}' (rank: {i+1})")
                                 continue
+                            # マンガ詳細ページのリンクを抽出
+                            detail_url = None
+                            link_elem = item.find('a')
+                            if link_elem and 'href' in link_elem.attrs:
+                                href = link_elem['href']
+                                if href.startswith('http'):
+                                    detail_url = href
+                                else:
+                                    # 相対URLの場合、ベースURLと結合
+                                    base_url = "https://comic.k-manga.jp"
+                                    detail_url = f"{base_url}{href}" if not href.startswith('/') else f"{base_url}/{href.lstrip('/')}"
+                                
+                                logger.info(f"マンガ詳細ページリンク (rank: {i+1}, title: {title}): {detail_url}")
+                            else:
+                                logger.warning(f"マンガ詳細ページのリンクが見つかりませんでした (rank: {i+1}, title: {title})")
+                            
                             free_chapters = 0
                             free_books = 0
                             free_book_elem = item.select_one('aside.icon-text.icon-text__jikkuri')
@@ -200,10 +220,16 @@ class MangaOukokuScraper(BaseStoreScraper):
                                         if books_match:
                                             free_books = int(books_match.group(1))
                                             break
+                            
+                            # Fetch manga details
+                            manga_details = self._fetch_manga_details(detail_url)
+                            first_book_title = manga_details.get('first_book_title')
+
                             manga, _ = get_or_create_manga(
                                 title=title,
                                 author=author,
-                                categories=category_objs
+                                categories=category_objs,
+                                first_book_title=first_book_title  # New field added
                             )
                             if scraping_history is not None:
                                 try:
@@ -295,3 +321,41 @@ class MangaOukokuScraper(BaseStoreScraper):
         except requests.RequestException as e:
             logger.error(f"ページ取得中にエラーが発生しました: {e}")
             return None
+    
+    def _fetch_manga_details(self, detail_url):
+        """
+        Fetch and parse the manga detail page to extract specific fields.
+
+        Args:
+            detail_url (str): The URL of the manga detail page.
+
+        Returns:
+            dict: A dictionary containing extracted fields, such as 'first_book_title'.
+        """
+        try:
+            logger.info(f"Fetching manga detail page: {detail_url}")
+            time.sleep(random.uniform(1, 3))  # Add a delay between requests
+            response = self._fetch_page(detail_url)
+            if not response:
+                logger.error(f"Failed to fetch manga detail page: {detail_url}")
+                return {}
+
+            soup = BeautifulSoup(response, 'html.parser')
+
+            # Extract the first book title using the chapter-exid="1" selector
+            first_book_elem = soup.select_one('div.book-chapter--item[chapter-exid="1"] h2.book-chapter--title a')
+            first_book_title = first_book_elem.text.strip() if first_book_elem else None
+
+            if first_book_title:
+                logger.info(f"Extracted first_book_title: {first_book_title}")
+            else:
+                logger.warning(f"first_book_title not found on page: {detail_url}")
+
+            logger.debug(f"Detail page extraction result: {{'first_book_title': first_book_title}}")
+            return {
+                'first_book_title': first_book_title
+            }
+
+        except Exception as e:
+            logger.error(f"Error while fetching manga details from {detail_url}: {e}")
+            return {}
