@@ -2,7 +2,6 @@
 マンガテーブルのRatingを更新するスクリプト
 
 このスクリプトは、スクレイピングされたマンガデータの順位に基づいてRatingを更新します。
-計算式: 各マンガの全スクレイピングデータの (100 - 順位) の合計
 
 Usage:
     python manage.py runscript update_manga_ratings [--script-args="YYYY-MM-DD"]
@@ -16,6 +15,8 @@ Example:
 import logging
 from datetime import datetime, date
 import sys
+import os
+import requests
 from django.db import transaction
 from django.db.models import Avg, Min, Max, Case, When, F, Value, IntegerField
 from manga.models import Manga, ScrapedManga, ScrapingHistory, EbookStore
@@ -94,19 +95,55 @@ def update_ratings(target_date=None):
             
             print(f"マンガ「{manga.title}」のスクレイピングデータ: {scraped_data.count()}件")
             
-            # 各スクレイピングデータの(100 - 順位)の合計を計算
+            # 各スクレイピングデータの合計を計算
+            # 1位 1000点
+            # 2位 750点
+            # 3位 500点
+            # 4位 300点
+            # 5位 250点
+            # 6位 200点
+            # 7位 175点
+            # 8位 150点
+            # 9位 125点
+            # 10位 100点
+            # 11位以下 100-順位点
+            # ただし、順位が100以上の場合は0点
             total_rating = 0
             ranks_info = []
             
             for data in scraped_data:
                 print(f"  - スクレイピングID: {data.id}, 順位: {data.rank}, ストア: {data.scraping_history.store.name}")
-                rank_score = max(100 - data.rank, 0)  # マイナスにならないよう保証
-                total_rating += rank_score
-                ranks_info.append(f"{data.rank}位({rank_score}点)")
+                if data.rank == 1:
+                    points = 1000
+                elif data.rank == 2:
+                    points = 750
+                elif data.rank == 3:
+                    points = 500
+                elif data.rank == 4:
+                    points = 300
+                elif data.rank == 5:
+                    points = 250
+                elif data.rank == 6:
+                    points = 200
+                elif data.rank == 7:
+                    points = 175
+                elif data.rank == 8:
+                    points = 150
+                elif data.rank == 9:
+                    points = 125
+                elif data.rank == 10:
+                    points = 100
+                elif data.rank >= 11:
+                    points = max(0, 100 - data.rank)
+                else:
+                    points = 0
+                total_rating += points
+                ranks_info.append(f"{data.scraping_history.store.name} (順位: {data.rank}, 点数: {points})")
+            print(f"  合計Rating: {total_rating}")
             
-            # 新しいRating値（最大999に制限）
-            if total_rating > 999:
-                new_rating = 999
+            # 新しいRating値（最大100000に制限）
+            if total_rating > 100000:
+                new_rating = 100000
             else:
                 new_rating = int(total_rating)
             
@@ -144,6 +181,48 @@ def update_ratings(target_date=None):
         logger.info(f"更新されたマンガ: {updated_count}/{manga_count}件")
         return updated_count
 
+def fetch_google_books_data(first_book_title, title):
+    """
+    Google Books APIを使用して表紙画像、概要、ISBNコードを取得します。
+
+    Args:
+        first_book_title (str): マンガの第1巻タイトル
+        title (str): マンガのタイトル
+
+    Returns:
+        dict: APIレスポンスデータ
+    """
+    api_key = os.getenv('GOOGLE_BOOKS_API_KEY')
+    if not api_key:
+        logger.error("Google Books APIキーが設定されていません")
+        return None
+
+    # 初回リクエスト
+    url = f"https://www.googleapis.com/books/v1/volumes?q=%2Bintitle%3A{first_book_title}%2Bintitle%3A%EF%BC%91&startIndex=0&maxResults=1&key={api_key}&langRestrict=ja-JP"
+    try:
+        print(f"Google Books APIを呼び出します: {url}")
+        logger.info(f"Google Books APIを呼び出します: {url}")
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        # itemsが取得できない、もしくは0件の場合は再試行
+        if not data.get('items'):
+            logger.warning("Google Books APIで結果が見つかりませんでした。タイトルで再試行します。")
+            url = f"https://www.googleapis.com/books/v1/volumes?q=%2Bintitle%3A{title}&startIndex=0&maxResults=1&key={api_key}&langRestrict=ja-JP"
+            logger.info(f"Google Books APIを再試行します: {url}")
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+        else:
+            logger.info("Google Books APIからデータを取得しました") 
+
+        return data
+
+    except requests.RequestException as e:
+        logger.error(f"Google Books APIの呼び出し中にエラーが発生しました: {e}")
+        return None
+
 def run(*args):
     """
     スクリプト実行のエントリーポイント
@@ -170,6 +249,28 @@ def run(*args):
         updated_count = update_ratings(target_date)
         print(f"Rating更新処理が完了しました。更新件数: {updated_count}件")
         logger.info(f"Rating更新処理が完了しました。更新件数: {updated_count}件")
+        
+        # Google Books APIからデータを取得
+        for manga in Manga.objects.all():
+            # マンガの第1巻タイトルとタイトルを使用してGoogle Books APIからデータを取得
+            # first_book_titleが空の場合はタイトルのみで検索
+            google_books_data = fetch_google_books_data(
+                manga.first_book_title or manga.title,
+                manga.title
+            )
+            if google_books_data and google_books_data.get('items'):
+                volume_info = google_books_data['items'][0].get('volumeInfo', {})
+                manga.description = volume_info.get('description', manga.description)
+                image_links = volume_info.get('imageLinks', {})
+                manga.cover_image = image_links.get('thumbnail', manga.cover_image)
+                manga.save(update_fields=['description', 'cover_image'])
+            # 1から3秒の待機時間を追加
+            import time
+            time.sleep(1 + (2 * os.urandom(1)[0] // 256))
+        
+        print("Google Booksデータの取得とマンガ情報の更新が完了しました")
+        logger.info("Google Booksデータの取得とマンガ情報の更新が完了しました")
+        
         # 明示的に戻り値を指定しない（Noneを返す）
     except Exception as e:
         print(f"ERROR: {e}")

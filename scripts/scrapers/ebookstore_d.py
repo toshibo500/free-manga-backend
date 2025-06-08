@@ -117,22 +117,23 @@ class EbookStoreDScraper(BaseStoreScraper):
                         if not detail_url.endswith('disp_mode=easy'):
                             detail_url += '?disp_mode=easy'
                         
-                        # 詳細ページから著者情報と無料冊数を一度に取得
-                        author, free_books = self._fetch_details_from_page(detail_url)
-                        
+                        # 詳細ページから著者情報、無料冊数、第1巻タイトルを一度に取得
+                        author, free_books, first_book_title = self._fetch_details_from_page(detail_url)
+
                         # 無料話数は常に0
                         free_chapters = 0
-                        
+
                         # 空白やNoneのタイトル・著者はスキップ
                         if not title or not author or title == "不明" or author == "不明":
                             logger.warning(f"無効なタイトルまたは著者をスキップ: '{title}' / '{author}' (rank: {rank})")
                             continue
-                            
+
                         # マンガデータを作成・取得
                         manga, _ = get_or_create_manga(
                             title=title,
                             author=author,
-                            categories=category_objs
+                            categories=category_objs,
+                            first_book_title=first_book_title  # Register first book title
                         )
                         
                         # マンガが作成できなかった場合はスキップ
@@ -253,13 +254,13 @@ class EbookStoreDScraper(BaseStoreScraper):
             
     def _fetch_details_from_page(self, detail_url):
         """
-        マンガ詳細ページから著者情報と無料冊数を一度に取得
-        
+        マンガ詳細ページから著者情報、無料冊数、第1巻タイトルを一度に取得
+
         Args:
             detail_url (str): 詳細ページのURL
-            
+
         Returns:
-            tuple: (著者名, 無料冊数)
+            tuple: (著者名, 無料冊数, 第1巻タイトル)
         """
         try:
             # 詳細ページを取得（1回のみ）
@@ -267,10 +268,10 @@ class EbookStoreDScraper(BaseStoreScraper):
             response = self._fetch_page(detail_url)
             if not response:
                 logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return "不明", 0
-                
+                return "不明", 0, None
+
             soup = BeautifulSoup(response, 'html.parser')
-            
+
             # 著者情報を取得
             author = "不明"
             author_elem = soup.select_one('div.title_details_author_name')
@@ -280,43 +281,25 @@ class EbookStoreDScraper(BaseStoreScraper):
                 author = self._clean_author_name(author)
             else:
                 logger.warning(f"詳細ページから著者情報を取得できませんでした: {detail_url}")
-            
+
             # 無料冊数を取得
             free_items = soup.select('ul.title_vol_easy_box li div.free_easy_m')
             free_books = len(free_items)
             logger.info(f"詳細ページから無料冊数を取得: {free_books}冊")
-            
-            return author, free_books
-            
+
+            # 第1巻タイトルを取得
+            first_book_elem = soup.select_one('h1.titleName')
+            first_book_title = first_book_elem.text.strip() if first_book_elem else None
+            if first_book_title:
+                logger.info(f"詳細ページから第1巻タイトルを取得: {first_book_title}")
+            else:
+                logger.warning(f"詳細ページから第1巻タイトルを取得できませんでした: {detail_url}")
+
+            return author, free_books, first_book_title
+
         except Exception as e:
             logger.error(f"詳細ページからの情報取得中にエラーが発生: {e}")
-            return "不明", 0
-            
-    def _fetch_author_from_detail_page(self, detail_url):
-        """
-        マンガ詳細ページから著者情報を取得（後方互換性維持用）
-        
-        Args:
-            detail_url (str): 詳細ページのURL
-            
-        Returns:
-            str: 著者名（取得できない場合は"不明"）
-        """
-        author, _ = self._fetch_details_from_page(detail_url)
-        return author
-            
-    def _fetch_free_books_from_detail_page(self, detail_url):
-        """
-        マンガ詳細ページから無料冊数を取得（後方互換性維持用）
-        
-        Args:
-            detail_url (str): 詳細ページのURL
-            
-        Returns:
-            int: 無料冊数
-        """
-        _, free_books = self._fetch_details_from_page(detail_url)
-        return free_books
+            return "不明", 0, None
 
     def _clean_author_name(self, author):
         """

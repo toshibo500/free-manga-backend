@@ -92,17 +92,15 @@ class EbookStoreCScraper(BaseStoreScraper):
                             
                         relative_url = detail_link.get('href')
                         detail_url = urljoin('https://www.ebookjapan.jp', relative_url)
-                        
-                        # 著者の取得 (詳細ページから)
-                        author = self._fetch_author_from_detail_page(detail_url)
-                        
-                        # 無料冊数を取得
-                        free_books = self._fetch_free_books_from_detail_page(detail_url)
-                        
-                        # 無料話数を取得
-                        free_chapters = self._fetch_free_chapters_from_detail_page(detail_url)
-                        
-                        # 空白やNoneのタイトル・著者はスキップ
+
+                        # Fetch all details in one request
+                        manga_details = self._fetch_manga_details(detail_url)
+                        author = manga_details['author']
+                        free_books = manga_details['free_books']
+                        free_chapters = manga_details['free_chapters']
+                        first_book_title = manga_details['first_book_title']
+
+                        # Skip invalid titles or authors
                         if not title or not author or title == "不明" or author == "不明":
                             logger.warning(f"無効なタイトルまたは著者をスキップ: '{title}' / '{author}' (rank: {rank})")
                             continue
@@ -111,7 +109,8 @@ class EbookStoreCScraper(BaseStoreScraper):
                         manga, _ = get_or_create_manga(
                             title=title,
                             author=author,
-                            categories=category_objs
+                            categories=category_objs,
+                            first_book_title=first_book_title  # Register first book title
                         )
                         
                         # マンガが作成できなかった場合はスキップ
@@ -230,132 +229,64 @@ class EbookStoreCScraper(BaseStoreScraper):
                 
             return None
             
-    def _fetch_author_from_detail_page(self, detail_url):
+    def _fetch_manga_details(self, detail_url):
         """
-        マンガ詳細ページから著者情報を取得
-        
+        Fetch and parse the manga detail page to extract author, free books, free chapters, and first book title.
+
         Args:
-            detail_url (str): 詳細ページのURL
-            
+            detail_url (str): The URL of the manga detail page.
+
         Returns:
-            str: 著者名（取得できない場合は"不明"）
+            dict: A dictionary containing 'author', 'free_books', 'free_chapters', and 'first_book_title'.
         """
         try:
-            # 詳細ページを取得
-            logger.info(f"詳細ページから著者情報を取得: {detail_url}")
+            logger.info(f"Fetching manga detail page: {detail_url}")
             response = self._fetch_page(detail_url)
             if not response:
-                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return "不明"
-                
+                logger.warning(f"Failed to fetch manga detail page: {detail_url}")
+                return {'author': '不明', 'free_books': 0, 'free_chapters': 0, 'first_book_title': None}
+
             soup = BeautifulSoup(response, 'html.parser')
-            
-            # 著者情報を取得
-            author_elem = soup.select_one('p.contents-detail__author')
-            if author_elem and author_elem.select_one('a'):
-                author = author_elem.select_one('a').text.strip()
-                logger.info(f"詳細ページから著者情報を取得: {author}")
-                return self._clean_author_name(author)
-            
-            # 著者情報が見つからない場合
-            logger.warning(f"詳細ページから著者情報を取得できませんでした: {detail_url}")
-            return "不明"
-            
-        except Exception as e:
-            logger.error(f"詳細ページからの著者情報取得中にエラーが発生: {e}")
-            return "不明"
-            
-    def _fetch_free_books_from_detail_page(self, detail_url):
-        """
-        マンガ詳細ページから無料冊数を取得
-        
-        Args:
-            detail_url (str): 詳細ページのURL
-            
-        Returns:
-            int: 無料冊数
-        """
-        try:
-            # 詳細ページを取得
-            logger.info(f"詳細ページから無料冊数を取得: {detail_url}")
-            response = self._fetch_page(detail_url)
-            if not response:
-                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return 0
-                
-            soup = BeautifulSoup(response, 'html.parser')
-            
-            # 無料冊数を取得
+
+            # Extract author
+            author_elem = soup.select_one('p.contents-detail__author a')
+            author = author_elem.text.strip() if author_elem else '不明'
+
+            # Extract free books
             free_books = []
             free_items = soup.select('a.book-item.free-item__content')
-            
             for item in free_items:
                 title_elem = item.select_one('p.book-caption__title')
                 if title_elem:
-                    title_text = title_elem.text.strip()
-                    # 巻数を抽出
-                    volume_match = re.search(r'(\d+)', title_text)
+                    volume_match = re.search(r'(\d+)', title_elem.text.strip())
                     if volume_match:
-                        volume = int(volume_match.group(1))
-                        free_books.append(volume)
-                        
-            # 最大の巻数を返す（無料冊数）
-            if free_books:
-                max_volume = max(free_books)
-                logger.info(f"詳細ページから無料冊数を取得: {max_volume}冊")
-                return max_volume
-            
-            # 無料タグがあるが巻数が取得できなかった場合は1とする
-            if soup.select_one('span.tagtext.tagtext--carnation.tagtext--fill'):
-                logger.info(f"詳細ページから無料タグを検出: 無料冊数を1とします")
-                return 1
-                
-            logger.info(f"詳細ページから無料冊数を取得できませんでした: 0冊")
-            return 0
-            
-        except Exception as e:
-            logger.error(f"詳細ページからの無料冊数取得中にエラーが発生: {e}")
-            return 0
-            
-    def _fetch_free_chapters_from_detail_page(self, detail_url):
-        """
-        マンガ詳細ページから無料話数を取得
-        
-        Args:
-            detail_url (str): 詳細ページのURL
-            
-        Returns:
-            int: 無料話数
-        """
-        try:
-            # 詳細ページを取得
-            logger.info(f"詳細ページから無料話数を取得: {detail_url}")
-            response = self._fetch_page(detail_url)
-            if not response:
-                logger.warning(f"詳細ページを取得できませんでした: {detail_url}")
-                return 0
-                
-            soup = BeautifulSoup(response, 'html.parser')
-            
-            # 連載アイテムを検索
+                        free_books.append(int(volume_match.group(1)))
+            max_free_books = max(free_books) if free_books else 0
+
+            # Extract free chapters
             serial_item = soup.select_one('a.serial-story-item.free-item__content')
+            free_chapters = 0
             if serial_item:
-                # 無料話数タグを検索
                 free_tag = serial_item.select_one('span.tagtext.tagtext--carnation.tagtext--fill.story-caption__tagtext')
                 if free_tag:
-                    # 無料話数を抽出
                     chapters_match = re.search(r'(\d+)話無料', free_tag.text)
                     if chapters_match:
                         free_chapters = int(chapters_match.group(1))
-                        logger.info(f"詳細ページから無料話数を取得: {free_chapters}話")
-                        return free_chapters
-            
-            logger.info(f"詳細ページから無料話数を取得できませんでした: 0話")
-            return 0
-            
+
+            # Extract first book title
+            first_book_elem = soup.select_one('h1.book-main__heading')
+            first_book_title = first_book_elem.text.strip() if first_book_elem else None
+
+            return {
+                'author': self._clean_author_name(author),
+                'free_books': max_free_books,
+                'free_chapters': free_chapters,
+                'first_book_title': first_book_title
+            }
+
         except Exception as e:
-            logger.error(f"詳細ページからの無料話数取得中にエラーが発生: {e}")
-            return 0
+            logger.error(f"Error while fetching manga details from {detail_url}: {e}")
+            return {'author': '不明', 'free_books': 0, 'free_chapters': 0, 'first_book_title': None}
 
     def _clean_author_name(self, author):
         """
