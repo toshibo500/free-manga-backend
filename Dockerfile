@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 # 依存関係のインストール
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install debugpy
 
 # プロジェクトコードのコピー
 COPY . .

@@ -3,11 +3,12 @@ version: '3.8'
 services:
   api:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: sh -c "python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/code
     ports:
       - "8000:8000"
+      - "5678:5678"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - DATABASE_URL=mysql://root:password@db:3306/free_manga_db
@@ -29,11 +30,14 @@ services:
 
   scraper:
     build: .
-    command: tail -f /dev/null
+    command: sh -c "python -m debugpy --listen 0.0.0.0:5679 --wait-for-client manage.py runscript test_scraper --script-args=\"ebookstore_e\""
     volumes:
       - .:/code
+    ports:
+      - "5679:5679"
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
+      - GOOGLE_BOOKS_API_KEY=${GOOGLE_BOOKS_API_KEY}
     depends_on:
       - db
     restart: always

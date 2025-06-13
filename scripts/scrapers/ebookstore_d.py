@@ -141,20 +141,7 @@ class EbookStoreDScraper(BaseStoreScraper):
                             logger.warning(f"マンガの作成に失敗しました: '{title}' (rank: {rank})")
                             continue
                             
-                        # スクレイピング履歴がある場合、ScrapedMangaを作成
-                        if scraping_history is not None:
-                            try:
-                                ScrapedManga.objects.update_or_create(
-                                    scraping_history=scraping_history,
-                                    manga=manga,
-                                    defaults={
-                                        'free_chapters': free_chapters,
-                                        'free_books': free_books,
-                                        'rank': rank
-                                    }
-                                )
-                            except Exception as e:
-                                logger.warning(f"ScrapedManga重複エラー回避: {e}")
+                        # 注: BaseStoreScraper._save_data()がScrapedMangaを登録するため、ここでは登録しません
                                 
                         # マンガデータリストに追加
                         manga_data.append({

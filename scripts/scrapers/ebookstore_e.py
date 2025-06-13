@@ -42,6 +42,7 @@ class EbookStoreEScraper(BaseStoreScraper):
                 free_chapters = int(m.group(1))
         # 無料冊数は常に0
         free_books = 0
+        logger.info(f"抽出: rank={rank}, title={title}, author={author}, free_chapters={free_chapters}, free_books={free_books}, category={cat_url.category.name}")
         # マンガデータを作成・取得
         from scripts.utils import get_or_create_manga
         manga, _ = get_or_create_manga(
@@ -52,21 +53,7 @@ class EbookStoreEScraper(BaseStoreScraper):
         if not manga:
             logger.warning(f"マンガの作成に失敗: {title} / {author}")
             return None
-        # スクレイピング履歴がある場合、ScrapedMangaを作成
-        if scraping_history is not None:
-            from manga.models import ScrapedManga
-            try:
-                ScrapedManga.objects.update_or_create(
-                    scraping_history=scraping_history,
-                    manga=manga,
-                    defaults={
-                        'free_chapters': free_chapters,
-                        'free_books': free_books,
-                        'rank': rank
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"ScrapedManga重複エラー回避: {e}")
+        # 注: BaseStoreScraper._save_data()がScrapedMangaを登録するため、ここでは登録しません
         return {
             'manga': manga,
             'free_chapters': free_chapters,
@@ -112,3 +99,46 @@ class EbookStoreEScraper(BaseStoreScraper):
         logger.info("めちゃコミランキングスクレイピング終了")
         self._report_stats(manga_data)
         return manga_data
+
+    def _report_stats(self, manga_data):
+        """
+        スクレイピング結果の統計情報をログに出力
+        
+        Args:
+            manga_data (list): 収集したマンガデータのリスト
+        """
+        if not manga_data:
+            logger.warning("収集されたマンガデータがありません")
+            return
+            
+        # 収集したデータの総数
+        total_count = len(manga_data)
+        
+        # 著者と無料話数、無料冊数の統計
+        authors_found = sum(1 for m in manga_data if m['manga'].author != "不明")
+        free_chapters_found = sum(1 for m in manga_data if m['free_chapters'] > 0)
+        free_books_found = sum(1 for m in manga_data if m['free_books'] > 0)
+        
+        # カテゴリごとの集計
+        from manga.models import Category
+        category_counts = {}
+        for m in manga_data:
+            cat_id = m['category_id']
+            cat_name = Category.objects.get(id=cat_id).name
+            if cat_name not in category_counts:
+                category_counts[cat_name] = 0
+            category_counts[cat_name] += 1
+            
+        # 結果をログ出力
+        logger.info("=" * 50)
+        logger.info("スクレイピング統計情報")
+        logger.info("-" * 50)
+        logger.info(f"総収集マンガ数: {total_count}")
+        logger.info(f"著者情報あり: {authors_found}/{total_count} ({authors_found/total_count*100:.1f}%)")
+        logger.info(f"無料話数あり: {free_chapters_found}/{total_count} ({free_chapters_found/total_count*100:.1f}%)")
+        logger.info(f"無料冊数あり: {free_books_found}/{total_count} ({free_books_found/total_count*100:.1f}%)")
+        logger.info("-" * 30)
+        logger.info("カテゴリ別集計:")
+        for cat, count in category_counts.items():
+            logger.info(f"- {cat}: {count}件")
+        logger.info("=" * 50)
