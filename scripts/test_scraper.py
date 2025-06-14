@@ -25,7 +25,8 @@ SCRAPER_STORE_MAPPINGS = {
     "ebookstore_b": "スキマ",      # ID: 2
     "ebookstore_c": "ebook japan", # ID: 3
     "ebookstore_d": "シーモア",    # ID: 4
-    "ebookstore_e": "めちゃコミ"   # ID: 5
+    "ebookstore_e": "めちゃコミ",  # ID: 5
+    "ebookstore_f": "ブックライブ" # ID: 6
 }
 
 def run(*args):

@@ -2,11 +2,15 @@ FROM python:3.9-slim
 
 WORKDIR /code
 
-# MySQLクライアントライブラリをインストール
+# MySQLクライアントライブラリ、Chromium、必要な依存関係をインストール
 RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
     gcc \
     pkg-config \
+    wget \
+    gnupg \
+    chromium \
+    chromium-driver \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
