@@ -23,6 +23,9 @@ from manga.models import Manga, ScrapedManga, ScrapingHistory, EbookStore
 
 logger = logging.getLogger(__name__)
 
+# Google Books APIのクォータ制限フラグ（グローバル変数）
+google_books_quota_exceeded = False
+
 def update_ratings(target_date=None):
     """
     指定された日付のスクレイピングデータに基づいてマンガのレーティングを更新します
@@ -192,6 +195,13 @@ def fetch_google_books_data(first_book_title, title):
     Returns:
         dict: APIレスポンスデータ
     """
+    global google_books_quota_exceeded
+    
+    # クォータが既に超過している場合はAPIを呼び出さない
+    if google_books_quota_exceeded:
+        logger.info(f"Google Books APIクォータ超過により、{title}のAPI呼び出しをスキップします")
+        return None
+    
     api_key = os.getenv('GOOGLE_BOOKS_API_KEY')
     if not api_key:
         logger.error("Google Books APIキーが設定されていません")
@@ -203,6 +213,13 @@ def fetch_google_books_data(first_book_title, title):
         print(f"Google Books APIを呼び出します: {url}")
         logger.info(f"Google Books APIを呼び出します: {url}")
         response = requests.get(url)
+        
+        # 429エラー（Too Many Requests）をチェック
+        if response.status_code == 429:
+            logger.warning("Google Books APIクォータ制限に達しました。以降のAPI呼び出しを停止します。")
+            google_books_quota_exceeded = True
+            return None
+        
         response.raise_for_status()
         data = response.json()
 
@@ -217,6 +234,13 @@ def fetch_google_books_data(first_book_title, title):
             url = f"https://www.googleapis.com/books/v1/volumes?q=%2Bintitle%3A{title}&startIndex=0&maxResults=1&key={api_key}&langRestrict=ja-JP"
             logger.info(f"Google Books APIを再試行します: {url}")
             response = requests.get(url)
+            
+            # 再度429エラーをチェック
+            if response.status_code == 429:
+                logger.warning("Google Books APIクォータ制限に達しました。以降のAPI呼び出しを停止します。")
+                google_books_quota_exceeded = True
+                return None
+            
             response.raise_for_status()
             data = response.json()
         else:
@@ -225,7 +249,11 @@ def fetch_google_books_data(first_book_title, title):
         return data
 
     except requests.RequestException as e:
-        logger.error(f"Google Books APIの呼び出し中にエラーが発生しました: {e}")
+        if "429" in str(e):
+            logger.warning("Google Books APIクォータ制限に達しました。以降のAPI呼び出しを停止します。")
+            google_books_quota_exceeded = True
+        else:
+            logger.error(f"Google Books APIの呼び出し中にエラーが発生しました: {e}")
         return None
 
 def run(*args):
@@ -256,7 +284,15 @@ def run(*args):
         logger.info(f"Rating更新処理が完了しました。更新件数: {updated_count}件")
         
         # Google Books APIからデータを取得
+        google_books_updates = 0
+        skipped_due_to_quota = 0
+        
         for manga in Manga.objects.all():
+            # クォータ制限チェック
+            if google_books_quota_exceeded:
+                skipped_due_to_quota += 1
+                continue
+                
             # マンガの第1巻タイトルとタイトルを使用してGoogle Books APIからデータを取得
             # first_book_titleが空の場合はタイトルのみで検索
             google_books_data = fetch_google_books_data(
@@ -269,12 +305,19 @@ def run(*args):
                 image_links = volume_info.get('imageLinks', {})
                 manga.cover_image = image_links.get('thumbnail', manga.cover_image)
                 manga.save(update_fields=['description', 'cover_image'])
+                google_books_updates += 1
             # 3から8秒の待機時間を追加
             import time
             time.sleep(3 + (5 * (manga.id % 2)))
         
         print("Google Booksデータの取得とマンガ情報の更新が完了しました")
+        print(f"Google Books情報更新件数: {google_books_updates}件")
+        if google_books_quota_exceeded:
+            print(f"クォータ制限によりスキップされた件数: {skipped_due_to_quota}件")
         logger.info("Google Booksデータの取得とマンガ情報の更新が完了しました")
+        logger.info(f"Google Books情報更新件数: {google_books_updates}件")
+        if google_books_quota_exceeded:
+            logger.warning(f"Google Books APIクォータ制限により{skipped_due_to_quota}件がスキップされました")
         
         # 明示的に戻り値を指定しない（Noneを返す）
     except Exception as e:
