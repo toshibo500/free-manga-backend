@@ -29,7 +29,7 @@ class PopularMangaListView(generics.ListAPIView):
         category = self.kwargs.get('category')
         
         # リクエストからcount（件数）とoffset（開始位置）を取得
-        count = self.request.query_params.get('count', 50)
+        count = self.request.query_params.get('count', 100)
         offset = self.request.query_params.get('offset', 0)
         
         # 文字列から整数に変換

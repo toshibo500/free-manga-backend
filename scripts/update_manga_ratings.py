@@ -208,7 +208,12 @@ def fetch_google_books_data(first_book_title, title):
 
         # itemsが取得できない、もしくは0件の場合は再試行
         if not data.get('items'):
-            logger.warning("Google Books APIで結果が見つかりませんでした。タイトルで再試行します。")
+            # 3から8秒の待機時間を追加
+            import time
+            wait_time = 3 + (5 * (hash(first_book_title) % 2))  # ハッシュ値を使用して待機時間を変動
+            logger.warning(f"Google Books APIで結果が見つかりませんでした。{wait_time}秒待機してタイトルで再試行します")
+            time.sleep(wait_time)
+            print("Google Books APIで結果が見つかりませんでした。タイトルで再試行します")
             url = f"https://www.googleapis.com/books/v1/volumes?q=%2Bintitle%3A{title}&startIndex=0&maxResults=1&key={api_key}&langRestrict=ja-JP"
             logger.info(f"Google Books APIを再試行します: {url}")
             response = requests.get(url)
@@ -264,9 +269,9 @@ def run(*args):
                 image_links = volume_info.get('imageLinks', {})
                 manga.cover_image = image_links.get('thumbnail', manga.cover_image)
                 manga.save(update_fields=['description', 'cover_image'])
-            # 1から3秒の待機時間を追加
+            # 3から8秒の待機時間を追加
             import time
-            time.sleep(1 + (2 * os.urandom(1)[0] // 256))
+            time.sleep(3 + (5 * (manga.id % 2)))
         
         print("Google Booksデータの取得とマンガ情報の更新が完了しました")
         logger.info("Google Booksデータの取得とマンガ情報の更新が完了しました")
