@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from django.db import transaction
 from manga.models import Category, ScrapingHistory, ScrapedManga, EbookStore
+from scripts.utils import get_or_create_manga
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,16 @@ class BaseStoreScraper(ABC):
         各項目ごとに独立してトランザクションを実行し、一部のデータが失敗しても他のデータが保存されるようにする
         
         Args:
-            manga_data_list (list): マンガデータのリスト
+            manga_data_list (list): マンガデータのリスト。各要素は以下のキーを含む辞書:
+                - title (str): マンガタイトル
+                - author (str): 著者名
+                - first_book_title (str, optional): 第1巻タイトル
+                - free_chapters (int): 無料話数
+                - free_books (int): 無料冊数
+                - rank (int): ランキング順位
+                - category_id (str): カテゴリID
+                または
+                - manga (Manga): 既に作成済みのMangaオブジェクト（後方互換性のため）
         """
         created_count = 0
         for i, manga_data in enumerate(manga_data_list):
@@ -92,7 +102,29 @@ class BaseStoreScraper(ABC):
                 with transaction.atomic():
                     category_id = manga_data.get('category_id', 'all')
                     category = Category.objects.get(id=category_id)
-                    manga = manga_data['manga']
+                    
+                    # Mangaオブジェクトの取得または作成
+                    if 'manga' in manga_data:
+                        # 既にMangaオブジェクトが作成済みの場合（後方互換性）
+                        manga = manga_data['manga']
+                    else:
+                        # 生データからMangaオブジェクトを作成
+                        title = manga_data['title']
+                        author = manga_data['author']
+                        first_book_title = manga_data.get('first_book_title', '')
+                        categories = [category]
+                        
+                        manga, _ = get_or_create_manga(
+                            title=title,
+                            author=author,
+                            categories=categories,
+                            first_book_title=first_book_title
+                        )
+                        
+                        if not manga:
+                            logger.warning(f"マンガの作成に失敗しました: '{title}' (rank: {manga_data.get('rank', i+1)})")
+                            continue
+                    
                     ScrapedManga.objects.update_or_create(
                         scraping_history=self.history,
                         manga=manga,
@@ -115,11 +147,14 @@ class BaseStoreScraper(ABC):
         
         Returns:
             list: マンガデータのリスト。各要素は次のキーを含む辞書:
-                - title (str): タイトル
-                - author (str): 著者
+                - title (str): マンガタイトル
+                - author (str): 著者名
+                - first_book_title (str, optional): 第1巻タイトル
                 - free_chapters (int): 無料話数
                 - free_books (int): 無料冊数
                 - category_id (str): カテゴリID (省略可、デフォルトは 'all')
                 - rank (int): ランキング順位
+                
+            注意: 'manga'キーを含む場合は後方互換性のため既存のMangaオブジェクトを使用します
         """
         raise NotImplementedError("このメソッドは子クラスで実装する必要があります")

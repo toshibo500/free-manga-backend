@@ -105,6 +105,25 @@ class ScrapingHistory(models.Model):
         unique_together = ['store', 'scraping_date']
 
 
+class MangaEbookStoreDetailUrl(models.Model):
+    """電子書籍ストア別マンガ詳細URLモデル"""
+    manga = models.ForeignKey('Manga', on_delete=models.CASCADE, related_name='store_detail_urls', verbose_name='マンガ')
+    ebookstore = models.ForeignKey('EbookStore', on_delete=models.CASCADE, related_name='manga_detail_urls', verbose_name='電子書籍ストア')
+    url = models.CharField(max_length=500, verbose_name='詳細URL')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+    
+    def __str__(self):
+        return f"{self.manga.title} - {self.ebookstore.name}"
+    
+    class Meta:
+        verbose_name = '電子書籍ストア別マンガ詳細URL'
+        verbose_name_plural = '電子書籍ストア別マンガ詳細URL'
+        db_table = 'manga_manga_ebookstore_detaiurl'
+        ordering = ['manga', 'ebookstore']
+        unique_together = ['manga', 'ebookstore']
+
+
 class ScrapedManga(models.Model):
     """スクレイピングしたマンガデータモデル"""
     scraping_history = models.ForeignKey('ScrapingHistory', on_delete=models.CASCADE, related_name='scraped_mangas', verbose_name='スクレイピング履歴')

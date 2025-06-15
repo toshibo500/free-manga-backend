@@ -17,7 +17,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from bs4 import BeautifulSoup
 from scripts.scrapers.base import BaseStoreScraper
-from scripts.utils import get_or_create_manga
 from manga.models import Category, EbookStoreCategoryUrl
 
 logger = logging.getLogger(__name__)
@@ -229,24 +228,13 @@ class EbookStoreFScraper(BaseStoreScraper):
                                 logger.warning(f"無効なタイトルまたは著者をスキップ: '{title}' / '{author}' (rank: {rank})")
                                 continue
 
-                            # マンガデータを作成・取得
-                            manga, _ = get_or_create_manga(
-                                title=title,
-                                author=author,
-                                categories=category_objs,
-                                first_book_title=first_book_title
-                            )
-                            
-                            # マンガが作成できなかった場合はスキップ
-                            if not manga:
-                                logger.warning(f"マンガの作成に失敗しました: '{title}' (rank: {rank})")
-                                continue
-                                
-                            # 注: BaseStoreScraper._save_data()がScrapedMangaを登録するため、ここでは登録しません
+                            # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
                                     
                             # マンガデータリストに追加
                             manga_data.append({
-                                'manga': manga,
+                                'title': title,
+                                'author': author,
+                                'first_book_title': first_book_title,
                                 'free_chapters': free_chapters,
                                 'free_books': free_books,
                                 'category_id': cat_url.category.id,

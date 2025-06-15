@@ -11,8 +11,7 @@ from bs4 import BeautifulSoup
 import time
 from urllib.parse import urljoin
 from scripts.scrapers.base import BaseStoreScraper
-from scripts.utils import get_or_create_manga
-from manga.models import Category, ScrapedManga, EbookStoreCategoryUrl
+from manga.models import Category, EbookStoreCategoryUrl
 
 logger = logging.getLogger(__name__)
 
@@ -126,36 +125,12 @@ class EbookStoreBScraper(BaseStoreScraper):
                             logger.warning(f"無効なタイトルまたは著者をスキップ: '{title}' / '{author}' (rank: {rank})")
                             continue
                             
-                        # マンガデータを作成・取得
-                        manga, _ = get_or_create_manga(
-                            title=title,
-                            author=author,
-                            categories=category_objs
-                        )
-                        
-                        # マンガが作成できなかった場合はスキップ
-                        if not manga:
-                            logger.warning(f"マンガの作成に失敗しました: '{title}' (rank: {rank})")
-                            continue
-                            
-                        # スクレイピング履歴がある場合、ScrapedMangaを作成
-                        if scraping_history is not None:
-                            try:
-                                ScrapedManga.objects.update_or_create(
-                                    scraping_history=scraping_history,
-                                    manga=manga,
-                                    defaults={
-                                        'free_chapters': free_chapters,
-                                        'free_books': 0,  # スキマでは冊数の概念がないため0を設定
-                                        'rank': rank
-                                    }
-                                )
-                            except Exception as e:
-                                logger.warning(f"ScrapedManga重複エラー回避: {e}")
+                        # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
                                 
                         # マンガデータリストに追加
                         manga_data.append({
-                            'manga': manga,
+                            'title': title,
+                            'author': author,
                             'free_chapters': free_chapters,
                             'free_books': 0,  # スキマでは冊数の概念がないため0を設定
                             'category_id': cat_url.category.id,

@@ -9,8 +9,7 @@ import requests
 import random
 from bs4 import BeautifulSoup
 from scripts.scrapers.base import BaseStoreScraper
-from scripts.utils import get_or_create_manga
-from manga.models import Category, ScrapedManga, EbookStoreCategoryUrl
+from manga.models import Category, EbookStoreCategoryUrl
 
 logger = logging.getLogger(__name__)
 
@@ -102,28 +101,11 @@ class MangaOukokuScraper(BaseStoreScraper):
                                     continue
                                 
                                 # Update the database with the extracted first_book_title
-                                manga, _ = get_or_create_manga(
-                                    title=title.strip(),
-                                    author=author.strip(),
-                                    categories=category_objs,
-                                    first_book_title=first_book_title  # New field added
-                                )
-                                if scraping_history is not None:
-                                    try:
-                                        ScrapedManga.objects.update_or_create(
-                                            scraping_history=scraping_history,
-                                            manga=manga,
-                                            defaults={
-                                                'free_chapters': 0,
-                                                'free_books': 0,
-                                                'rank': i + 1
-                                            }
-                                        )
-                                    except Exception as e:
-                                        logger.warning(f"ScrapedManga重複エラー回避: {e}")
+                                # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
                                 manga_data.append({
-                                    'title': title,
-                                    'author': author,
+                                    'title': title.strip(),
+                                    'author': author.strip(),
+                                    'first_book_title': first_book_title,
                                     'free_chapters': 0,
                                     'free_books': 0,
                                     'category_id': cat_url.category.id,
@@ -225,27 +207,11 @@ class MangaOukokuScraper(BaseStoreScraper):
                             manga_details = self._fetch_manga_details(detail_url)
                             first_book_title = manga_details.get('first_book_title')
 
-                            manga, _ = get_or_create_manga(
-                                title=title,
-                                author=author,
-                                categories=category_objs,
-                                first_book_title=first_book_title  # New field added
-                            )
-                            if scraping_history is not None:
-                                try:
-                                    ScrapedManga.objects.update_or_create(
-                                        scraping_history=scraping_history,
-                                        manga=manga,
-                                        defaults={
-                                            'free_chapters': free_chapters,
-                                            'free_books': free_books,
-                                            'rank': i + 1
-                                        }
-                                    )
-                                except Exception as e:
-                                    logger.warning(f"ScrapedManga重複エラー回避: {e}")
+                            # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
                             manga_data.append({
-                                'manga': manga,
+                                'title': title,
+                                'author': author,
+                                'first_book_title': first_book_title,
                                 'free_chapters': free_chapters,
                                 'free_books': free_books,
                                 'category_id': cat_url.category.id,

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Manga, Category, EbookStore, ScrapingHistory, ScrapedManga, EbookStoreCategoryUrl
+from .models import Manga, Category, EbookStore, ScrapingHistory, ScrapedManga, EbookStoreCategoryUrl, MangaEbookStoreDetailUrl
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -70,3 +70,21 @@ class EbookStoreCategoryUrlAdmin(admin.ModelAdmin):
     list_filter = ('store', 'category')
     search_fields = ('store__name', 'category__name', 'url')
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(MangaEbookStoreDetailUrl)
+class MangaEbookStoreDetailUrlAdmin(admin.ModelAdmin):
+    list_display = ('get_manga_title', 'get_manga_author', 'ebookstore', 'url', 'created_at', 'updated_at')
+    list_filter = ('ebookstore', 'manga__categories')
+    search_fields = ('manga__title', 'manga__author', 'ebookstore__name', 'url')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    def get_manga_title(self, obj):
+        return obj.manga.title
+    get_manga_title.short_description = 'マンガタイトル'
+    get_manga_title.admin_order_field = 'manga__title'
+    
+    def get_manga_author(self, obj):
+        return obj.manga.author
+    get_manga_author.short_description = '著者'
+    get_manga_author.admin_order_field = 'manga__author'

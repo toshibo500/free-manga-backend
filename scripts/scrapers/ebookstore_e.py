@@ -43,19 +43,10 @@ class EbookStoreEScraper(BaseStoreScraper):
         # 無料冊数は常に0
         free_books = 0
         logger.info(f"抽出: rank={rank}, title={title}, author={author}, free_chapters={free_chapters}, free_books={free_books}, category={cat_url.category.name}")
-        # マンガデータを作成・取得
-        from scripts.utils import get_or_create_manga
-        manga, _ = get_or_create_manga(
-            title=title,
-            author=author,
-            categories=category_objs
-        )
-        if not manga:
-            logger.warning(f"マンガの作成に失敗: {title} / {author}")
-            return None
-        # 注: BaseStoreScraper._save_data()がScrapedMangaを登録するため、ここでは登録しません
+        # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
         return {
-            'manga': manga,
+            'title': title,
+            'author': author,
             'free_chapters': free_chapters,
             'free_books': free_books,
             'category_id': cat_url.category.id,

@@ -225,9 +225,9 @@ def fetch_google_books_data(first_book_title, title):
 
         # itemsが取得できない、もしくは0件の場合は再試行
         if not data.get('items'):
-            # 3から8秒の待機時間を追加
+            # 待機時間を追加
             import time
-            wait_time = 3 + (5 * (hash(first_book_title) % 2))  # ハッシュ値を使用して待機時間を変動
+            wait_time = 1
             logger.warning(f"Google Books APIで結果が見つかりませんでした。{wait_time}秒待機してタイトルで再試行します")
             time.sleep(wait_time)
             print("Google Books APIで結果が見つかりませんでした。タイトルで再試行します")
@@ -288,6 +288,11 @@ def run(*args):
         skipped_due_to_quota = 0
         
         for manga in Manga.objects.all():
+            # マンガの表紙画像と概要が既に設定されている場合はスキップ
+            if manga.cover_image and manga.description:
+                print(f"マンガ「{manga.title}」の表紙画像と概要は既に設定されています。スキップします")
+                continue
+
             # クォータ制限チェック
             if google_books_quota_exceeded:
                 skipped_due_to_quota += 1
@@ -306,9 +311,9 @@ def run(*args):
                 manga.cover_image = image_links.get('thumbnail', manga.cover_image)
                 manga.save(update_fields=['description', 'cover_image'])
                 google_books_updates += 1
-            # 3から8秒の待機時間を追加
+            # 1秒の待機時間を追加
             import time
-            time.sleep(3 + (5 * (manga.id % 2)))
+            time.sleep(1)
         
         print("Google Booksデータの取得とマンガ情報の更新が完了しました")
         print(f"Google Books情報更新件数: {google_books_updates}件")
