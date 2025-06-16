@@ -215,7 +215,8 @@ class MangaOukokuScraper(BaseStoreScraper):
                                 'free_chapters': free_chapters,
                                 'free_books': free_books,
                                 'category_id': cat_url.category.id,
-                                'rank': i + 1
+                                'rank': i + 1,
+                                'detail_url': detail_url
                             })
                         except Exception as e:
                             logger.warning(f"マンガアイテムの解析中にエラーが発生しました (rank: {i+1}): {e}")

@@ -137,7 +137,8 @@ class EbookStoreDScraper(BaseStoreScraper):
                             'free_chapters': free_chapters,
                             'free_books': free_books,
                             'category_id': cat_url.category.id,
-                            'rank': rank
+                            'rank': rank,
+                            'detail_url': detail_url
                         })
                         
                         # 進捗ログ（10アイテムごと）

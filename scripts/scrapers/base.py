@@ -7,7 +7,7 @@ import traceback
 from abc import ABC, abstractmethod
 from datetime import datetime
 from django.db import transaction
-from manga.models import Category, ScrapingHistory, ScrapedManga, EbookStore
+from manga.models import Category, ScrapingHistory, ScrapedManga, EbookStore, MangaEbookStoreDetailUrl
 from scripts.utils import get_or_create_manga
 
 logger = logging.getLogger(__name__)
@@ -134,6 +134,17 @@ class BaseStoreScraper(ABC):
                             'rank': manga_data['rank']
                         }
                     )
+                    
+                    # 詳細URLがある場合は保存
+                    detail_url = manga_data.get('detail_url')
+                    if detail_url:
+                        MangaEbookStoreDetailUrl.objects.update_or_create(
+                            manga=manga,
+                            ebookstore=self.store,
+                            defaults={'url': detail_url}
+                        )
+                        logger.debug(f"詳細URL保存: {manga.title} -> {detail_url}")
+                    
                     created_count += 1
             except Exception as e:
                 logger.warning(f"マンガデータの保存中にエラーが発生しました (rank: {i+1}): {str(e)}")

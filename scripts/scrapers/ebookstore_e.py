@@ -30,6 +30,19 @@ class EbookStoreEScraper(BaseStoreScraper):
         # タイトル
         title_elem = item.select_one('dt.p-book_title a')
         title = title_elem.text.strip() if title_elem else "不明"
+        
+        # 詳細ページのURL（aタグの最初のものを取得）
+        detail_url = None
+        link_elem = item.select_one('a')  # 最初のaタグを取得
+        if link_elem and link_elem.get('href'):
+            href = link_elem.get('href')
+            if href.startswith('http'):
+                detail_url = href
+            else:
+                # 相対URLの場合は絶対URLに変換
+                base_url = 'https://sp.mechacomi.jp'
+                detail_url = f"{base_url}{href}" if href.startswith('/') else f"{base_url}/{href}"
+        
         # 著者
         author_elem = item.select_one('dd.p-book_author')
         author = author_elem.text.strip() if author_elem else "不明"
@@ -42,7 +55,7 @@ class EbookStoreEScraper(BaseStoreScraper):
                 free_chapters = int(m.group(1))
         # 無料冊数は常に0
         free_books = 0
-        logger.info(f"抽出: rank={rank}, title={title}, author={author}, free_chapters={free_chapters}, free_books={free_books}, category={cat_url.category.name}")
+        logger.info(f"抽出: rank={rank}, title={title}, author={author}, free_chapters={free_chapters}, free_books={free_books}, category={cat_url.category.name}, detail_url={detail_url}")
         # 注: Mangaオブジェクトの作成はBaseStoreScraper._save_data()で行われます
         return {
             'title': title,
@@ -50,7 +63,8 @@ class EbookStoreEScraper(BaseStoreScraper):
             'free_chapters': free_chapters,
             'free_books': free_books,
             'category_id': cat_url.category.id,
-            'rank': rank
+            'rank': rank,
+            'detail_url': detail_url
         }
 
     def _scrape(self):

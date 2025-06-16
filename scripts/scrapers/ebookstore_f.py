@@ -204,6 +204,18 @@ class EbookStoreFScraper(BaseStoreScraper):
                             # タイトルの生成（第1巻タイトルから巻数を除去）
                             title = self._extract_title_from_first_book(first_book_title)
                             
+                            # 詳細ページのURL（aタグの最初のものを取得）
+                            detail_url = None
+                            link_elem = item.select_one('a')  # 最初のaタグを取得
+                            if link_elem and link_elem.get('href'):
+                                href = link_elem.get('href')
+                                if href.startswith('http'):
+                                    detail_url = href
+                                else:
+                                    # 相対URLの場合は絶対URLに変換
+                                    base_url = 'https://booklive.jp'
+                                    detail_url = f"{base_url}{href}" if href.startswith('/') else f"{base_url}/{href}"
+                            
                             # 著者の取得
                             author_elem = item.select_one('div[data-media="pc"].p-no-charge-book-item__author-name')
                             author = "不明"
@@ -238,12 +250,13 @@ class EbookStoreFScraper(BaseStoreScraper):
                                 'free_chapters': free_chapters,
                                 'free_books': free_books,
                                 'category_id': cat_url.category.id,
-                                'rank': rank
+                                'rank': rank,
+                                'detail_url': detail_url
                             })
                             
                             logger.info(f"抽出完了: rank={rank}, title={title}, author={author}, "
                                       f"free_chapters={free_chapters}, free_books={free_books}, "
-                                      f"first_book_title={first_book_title}")
+                                      f"first_book_title={first_book_title}, detail_url={detail_url}")
                             
                             # 進捗ログ（10アイテムごと）
                             if (i + 1) % 10 == 0:

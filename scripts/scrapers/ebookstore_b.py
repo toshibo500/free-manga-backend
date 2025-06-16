@@ -134,7 +134,8 @@ class EbookStoreBScraper(BaseStoreScraper):
                             'free_chapters': free_chapters,
                             'free_books': 0,  # スキマでは冊数の概念がないため0を設定
                             'category_id': cat_url.category.id,
-                            'rank': rank
+                            'rank': rank,
+                            'detail_url': detail_url
                         })
                         
                         # 進捗ログ（10アイテムごと）
