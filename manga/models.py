@@ -110,6 +110,8 @@ class MangaEbookStore(models.Model):
     manga = models.ForeignKey('Manga', on_delete=models.CASCADE, related_name='store_detail_urls', verbose_name='マンガ')
     ebookstore = models.ForeignKey('EbookStore', on_delete=models.CASCADE, related_name='manga_detail_urls', verbose_name='電子書籍ストア')
     url = models.CharField(max_length=500, verbose_name='詳細URL')
+    free_chapters = models.IntegerField(default=0, verbose_name='無料話数')
+    free_books = models.IntegerField(default=0, verbose_name='無料巻数')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
     
