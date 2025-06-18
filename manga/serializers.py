@@ -14,6 +14,8 @@ class EbookStoreDetailSerializer(serializers.Serializer):
     """電子書籍ストア詳細情報のシリアライザ"""
     ebookstore_name = serializers.CharField()
     manga_detail_url = serializers.URLField()
+    free_chapters = serializers.IntegerField()
+    free_books = serializers.IntegerField()
 
 
 class MangaSerializer(serializers.ModelSerializer):
@@ -38,7 +40,9 @@ class MangaSerializer(serializers.ModelSerializer):
         return [
             {
                 'ebookstore_name': d.ebookstore.name,
-                'manga_detail_url': d.url
+                'manga_detail_url': d.url,
+                'free_chapters': d.free_chapters,
+                'free_books': d.free_books
             }
             for d in detail_urls
         ]

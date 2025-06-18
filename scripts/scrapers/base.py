@@ -7,7 +7,7 @@ import traceback
 from abc import ABC, abstractmethod
 from datetime import datetime
 from django.db import transaction
-from manga.models import Category, ScrapingHistory, ScrapedManga, EbookStore, MangaEbookStoreDetailUrl
+from manga.models import Category, ScrapingHistory, ScrapedManga, EbookStore, MangaEbookStore
 from scripts.utils import get_or_create_manga
 
 logger = logging.getLogger(__name__)
@@ -137,13 +137,29 @@ class BaseStoreScraper(ABC):
                     
                     # 詳細URLがある場合は保存
                     detail_url = manga_data.get('detail_url')
+                    free_chapters = manga_data.get('free_chapters', 0)
+                    free_books = manga_data.get('free_books', 0)
                     if detail_url:
-                        MangaEbookStoreDetailUrl.objects.update_or_create(
+                        MangaEbookStore.objects.update_or_create(
                             manga=manga,
                             ebookstore=self.store,
-                            defaults={'url': detail_url}
+                            defaults={
+                                'url': detail_url,
+                                'free_chapters': free_chapters,
+                                'free_books': free_books
+                            }
                         )
-                        logger.debug(f"詳細URL保存: {manga.title} -> {detail_url}")
+                        logger.debug(f"詳細URL・無料話数・無料巻数保存: {manga.title} -> {detail_url}, {free_chapters}, {free_books}")
+                    else:
+                        # URLがない場合も無料話数・無料巻数を更新
+                        MangaEbookStore.objects.update_or_create(
+                            manga=manga,
+                            ebookstore=self.store,
+                            defaults={
+                                'free_chapters': free_chapters,
+                                'free_books': free_books
+                            }
+                        )
                     
                     created_count += 1
             except Exception as e:
