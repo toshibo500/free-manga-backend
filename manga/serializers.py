@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Manga, Category, EbookStore, MangaEbookStoreDetailUrl
+from .models import Manga, Category, EbookStore, MangaEbookStore
 from drf_yasg.utils import swagger_serializer_method
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -34,7 +34,7 @@ class MangaSerializer(serializers.ModelSerializer):
     
     @swagger_serializer_method(serializer_or_field=EbookStoreDetailSerializer(many=True))
     def get_ebookstores(self, obj):
-        detail_urls = MangaEbookStoreDetailUrl.objects.filter(manga=obj).select_related('ebookstore')
+        detail_urls = MangaEbookStore.objects.filter(manga=obj).select_related('ebookstore')
         return [
             {
                 'ebookstore_name': d.ebookstore.name,
