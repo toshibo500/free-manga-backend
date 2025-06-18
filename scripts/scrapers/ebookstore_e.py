@@ -120,7 +120,7 @@ class EbookStoreEScraper(BaseStoreScraper):
         total_count = len(manga_data)
         
         # 著者と無料話数、無料冊数の統計
-        authors_found = sum(1 for m in manga_data if m['manga'].author != "不明")
+        authors_found = sum(1 for m in manga_data if m['author'] != "不明")
         free_chapters_found = sum(1 for m in manga_data if m['free_chapters'] > 0)
         free_books_found = sum(1 for m in manga_data if m['free_books'] > 0)
         
